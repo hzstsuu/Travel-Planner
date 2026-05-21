@@ -1,0 +1,4 @@
+1|1|MISCELLANEOUS|Pustahan sa foreigner|13510.0|2026-05-21
+2|1|FOOD|Family Bundle Seafood|45650.0|2026-05-21
+3|1|ENTRANCE_FEES|1 person|840.0|2026-05-21
+4|2|TRANSPORTATION|Tricycle vice versa trip|250.0|2026-05-21

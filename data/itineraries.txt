@@ -1,0 +1,2 @@
+1|2|1|Tour inside the campus
+2|2|2|Interview with freshmans
