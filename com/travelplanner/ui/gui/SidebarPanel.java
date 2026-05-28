@@ -1,77 +1,132 @@
 package com.travelplanner.ui.gui;
+
+import com.travelplanner.service.SessionManager;
 import com.travelplanner.ui.gui.util.GuiUtil;
-import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.JButton;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.GridLayout;
+
+import javax.swing.*;
+import java.awt.*;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Consumer;
+
+import static com.travelplanner.ui.gui.TravelPlannerApp.*;
+
 public class SidebarPanel extends JPanel {
+
+    private static final Color BG     = new Color(22, 24, 36);
+    private static final Color ACTIVE = new Color(82, 130, 255);
+    private static final Color HOVER  = new Color(35, 38, 56);
+
     private final Consumer<String> navigator;
+    private final Runnable         onLogout;
+    private final Runnable         onSwitchAccount;   // NEW
     private final Map<String, JButton> buttons = new LinkedHashMap<>();
-    private final Color activeColor = new Color(74, 144, 226);
-    private final Color inactiveColor = new Color(42, 45, 56);
-    public SidebarPanel(Consumer<String> navigator) {
-        this.navigator = navigator;
+
+    public SidebarPanel(Consumer<String> navigator,
+                        Runnable onLogout,
+                        Runnable onSwitchAccount) {
+        this.navigator       = navigator;
+        this.onLogout        = onLogout;
+        this.onSwitchAccount = onSwitchAccount;
+        setBackground(BG);
+        setPreferredSize(new Dimension(210, Integer.MAX_VALUE));
+        setLayout(new BorderLayout());
         build();
     }
+
     private void build() {
-        setPreferredSize(new Dimension(250, 0));
-        setLayout(new BorderLayout());
-        setBorder(BorderFactory.createEmptyBorder(22, 16, 16, 16));
-        setBackground(new Color(31, 34, 43));
-        JPanel brandPanel = new JPanel(new BorderLayout());
-        brandPanel.setOpaque(false);
-        JLabel icon = new JLabel("✈");
-        icon.setFont(new Font("SansSerif", Font.BOLD, 34));
-        icon.setForeground(new Color(93, 173, 226));
-        JLabel title = new JLabel("<html><b>Travel</b><br><span style='color:#AEB6BF'>Planner</span></html>");
-        title.setFont(new Font("SansSerif", Font.PLAIN, 22));
-        title.setForeground(Color.WHITE);
-        brandPanel.add(icon, BorderLayout.WEST);
-        brandPanel.add(title, BorderLayout.CENTER);
-        add(brandPanel, BorderLayout.NORTH);
-        JPanel navPanel = new JPanel(new GridLayout(0, 1, 0, 10));
-        navPanel.setOpaque(false);
-        navPanel.setBorder(BorderFactory.createEmptyBorder(34, 0, 0, 0));
-        addButton(navPanel, TravelPlannerApp.CARD_DASHBOARD, "🏠  Dashboard", "Ctrl+1");
-        addButton(navPanel, TravelPlannerApp.CARD_TRIPS, "🧳  My Trips", "Ctrl+2");
-        addButton(navPanel, TravelPlannerApp.CARD_ITINERARY, "🗓  Itinerary Planner", "Ctrl+3");
-        addButton(navPanel, TravelPlannerApp.CARD_EXPENSES, "💳  Expenses & Budget", "Ctrl+4");
-        addButton(navPanel, TravelPlannerApp.CARD_LOGS, "📔  Travel Diary", "Ctrl+5");
-        addButton(navPanel, TravelPlannerApp.CARD_SETTINGS, "⚙  Settings", null);
-        add(navPanel, BorderLayout.CENTER);
-        JLabel footer = new JLabel("<html><span style='color:#9AA4B2'>Pogi Edition</span></html>");
-        footer.setBorder(BorderFactory.createEmptyBorder(10, 4, 0, 4));
-        JPanel bottom = new JPanel(new BorderLayout());
-        bottom.setOpaque(false);
-        bottom.add(Box.createVerticalStrut(10), BorderLayout.NORTH);
-        bottom.add(footer, BorderLayout.SOUTH);
+        // ── Brand ─────────────────────────────────────────────────────────
+        JPanel brand = new JPanel(new BorderLayout(10, 0));
+        brand.setBackground(BG);
+        brand.setBorder(BorderFactory.createEmptyBorder(22, 18, 22, 18));
+
+        JLabel icon     = new JLabel("✈");
+        icon.setFont(new Font("SansSerif", Font.BOLD, 26));
+        icon.setForeground(ACTIVE);
+
+        JLabel titleLbl = new JLabel(
+            "<html><b style='color:white'>Travel</b><br>"
+            + "<span style='color:#9AA4B2;font-size:10px'>Planner</span></html>");
+        titleLbl.setFont(new Font("SansSerif", Font.PLAIN, 18));
+
+        brand.add(icon,     BorderLayout.WEST);
+        brand.add(titleLbl, BorderLayout.CENTER);
+        add(brand, BorderLayout.NORTH);
+
+        // ── Nav buttons (NO tooltips = no Ctrl hint on hover) ─────────────
+        JPanel nav = new JPanel(new GridLayout(0, 1, 0, 2));
+        nav.setBackground(BG);
+        nav.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+
+        addNav(nav, CARD_DASHBOARD, "🏠  Dashboard");
+        addNav(nav, CARD_TRIPS,     "🧳  My Trips");
+        addNav(nav, CARD_ITINERARY, "🗓  Itinerary");
+        addNav(nav, CARD_EXPENSES,  "💳  Expenses");
+        addNav(nav, CARD_LOGS,      "📔  Travel Diary");
+        addNav(nav, CARD_SETTINGS,  "⚙   Settings");
+
+        add(nav, BorderLayout.CENTER);
+
+        // ── Bottom: user badge + switch account + log out ──────────────────
+        JPanel bottom = new JPanel();
+        bottom.setBackground(BG);
+        bottom.setLayout(new BoxLayout(bottom, BoxLayout.Y_AXIS));
+        bottom.setBorder(BorderFactory.createEmptyBorder(8, 8, 18, 8));
+
+        JSeparator sep = new JSeparator();
+        sep.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+        bottom.add(sep);
+        bottom.add(Box.createVerticalStrut(10));
+
+        // User badge
+        if (SessionManager.isLoggedIn()) {
+            JLabel userLbl = new JLabel("👤  " + SessionManager.current().getUsername());
+            userLbl.setFont(new Font("SansSerif", Font.PLAIN, 12));
+            userLbl.setForeground(new Color(140, 150, 170));
+            userLbl.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 4));
+            bottom.add(userLbl);
+            bottom.add(Box.createVerticalStrut(4));
+        }
+
+        // Switch Account button  ── NEW
+        JButton switchBtn = GuiUtil.sidebarButton("🔄  Switch Account");
+        switchBtn.setForeground(new Color(130, 180, 255));
+        switchBtn.addActionListener(e -> onSwitchAccount.run());
+        bottom.add(switchBtn);
+        bottom.add(Box.createVerticalStrut(2));
+
+        // Log Out button
+        JButton logoutBtn = GuiUtil.sidebarButton("🚪  Log Out");
+        logoutBtn.setForeground(new Color(220, 120, 120));
+        logoutBtn.addActionListener(e -> onLogout.run());
+        bottom.add(logoutBtn);
+
         add(bottom, BorderLayout.SOUTH);
     }
-    private void addButton(JPanel parent, String cardName, String text, String shortcut) {
-        JButton button = GuiUtil.sidebarButton(text);
-        if (shortcut != null) {
-            button.setToolTipText(shortcut);
-        }
-        button.addActionListener(e -> navigator.accept(cardName));
-        buttons.put(cardName, button);
-        parent.add(button);
+
+    // No tooltip parameter — removes the Ctrl+N hint that appeared on hover
+    private void addNav(JPanel parent, String card, String text) {
+        JButton btn = GuiUtil.sidebarButton(text);
+        btn.setBackground(BG);
+        btn.setToolTipText(null);   // explicitly clear any tooltip
+        btn.addActionListener(e -> navigator.accept(card));
+        btn.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override public void mouseEntered(java.awt.event.MouseEvent e) {
+                if (!btn.getBackground().equals(ACTIVE)) btn.setBackground(HOVER);
+            }
+            @Override public void mouseExited(java.awt.event.MouseEvent e) {
+                if (!btn.getBackground().equals(ACTIVE)) btn.setBackground(BG);
+            }
+        });
+        buttons.put(card, btn);
+        parent.add(btn);
     }
-    public void setActive(String cardName) {
-        for (Map.Entry<String, JButton> entry : buttons.entrySet()) {
-            JButton button = entry.getValue();
-            boolean active = entry.getKey().equals(cardName);
-            button.setBackground(active ? activeColor : inactiveColor);
-            button.setForeground(Color.WHITE);
-            button.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
-        }
+
+    public void setActive(String card) {
+        buttons.forEach((k, btn) -> {
+            boolean active = k.equals(card);
+            btn.setBackground(active ? ACTIVE : BG);
+            btn.setForeground(active ? Color.WHITE : new Color(190, 198, 215));
+        });
     }
 }

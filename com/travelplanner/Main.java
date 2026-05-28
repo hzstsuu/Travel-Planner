@@ -1,32 +1,33 @@
 package com.travelplanner;
-import com.travelplanner.repository.ExpenseRepository;
-import com.travelplanner.repository.ItineraryRepository;
-import com.travelplanner.repository.TravelLogRepository;
-import com.travelplanner.repository.TripRepository;
-import com.travelplanner.service.ExpenseService;
-import com.travelplanner.service.ItineraryService;
-import com.travelplanner.service.TravelLogService; 
-import com.travelplanner.service.TripService;
+
+import com.travelplanner.repository.*;
+import com.travelplanner.service.*;
 import com.travelplanner.ui.gui.TravelPlannerApp;
 import com.travelplanner.util.FileUtil;
+
 import javax.swing.SwingUtilities;
+
 public class Main {
     public static void main(String[] args) {
         FileUtil.initializeDataFiles();
-        TripRepository tripRepository = new TripRepository("data/trips.txt");
-        ItineraryRepository itineraryRepository = new ItineraryRepository("data/itineraries.txt");
-        ExpenseRepository expenseRepository = new ExpenseRepository("data/expenses.txt");
-        TravelLogRepository travelLogRepository = new TravelLogRepository("data/travel_logs.txt");
-        TripService tripService = new TripService(tripRepository);
-        ItineraryService itineraryService = new ItineraryService(itineraryRepository, tripRepository);
-        ExpenseService expenseService = new ExpenseService(expenseRepository, tripRepository);
-        TravelLogService travelLogService = new TravelLogService(travelLogRepository, tripRepository);
+
+        // Repositories
+        UserRepository       userRepo      = new UserRepository("data/users.txt");
+        TripRepository       tripRepo      = new TripRepository("data/trips.txt");
+        ItineraryRepository  itinRepo      = new ItineraryRepository("data/itineraries.txt");
+        ExpenseRepository    expenseRepo   = new ExpenseRepository("data/expenses.txt");
+        TravelLogRepository  logRepo       = new TravelLogRepository("data/travel_logs.txt");
+
+        // Services
+        UserService     userService     = new UserService(userRepo);
+        TripService     tripService     = new TripService(tripRepo);
+        ItineraryService itinService    = new ItineraryService(itinRepo, tripRepo);
+        ExpenseService  expenseService  = new ExpenseService(expenseRepo, tripRepo);
+        TravelLogService logService     = new TravelLogService(logRepo, tripRepo);
+
         SwingUtilities.invokeLater(() -> {
             TravelPlannerApp app = new TravelPlannerApp(
-                    tripService,
-                    itineraryService,
-                    expenseService,
-                    travelLogService
+                    userService, tripService, itinService, expenseService, logService
             );
             app.setVisible(true);
         });

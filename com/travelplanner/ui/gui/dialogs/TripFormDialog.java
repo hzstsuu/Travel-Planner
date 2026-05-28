@@ -1,103 +1,107 @@
 package com.travelplanner.ui.gui.dialogs;
+
 import com.travelplanner.model.Trip;
+import com.travelplanner.service.SessionManager;
 import com.travelplanner.service.TripService;
 import com.travelplanner.ui.gui.util.DateSpinner;
 import com.travelplanner.ui.gui.util.GuiUtil;
-import javax.swing.BorderFactory;
-import javax.swing.JDialog;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
-import javax.swing.JTextField;
-import javax.swing.JButton;
-import java.awt.BorderLayout;
-import java.awt.Frame;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
+
+import javax.swing.*;
+import java.awt.*;
 import java.time.LocalDate;
+
 public class TripFormDialog extends JDialog {
+
     private final TripService tripService;
-    private final Trip existingTrip;
-    private final Runnable onSaved;
-    private JTextField destinationField;
-    private DateSpinner startDateSpinner;
-    private DateSpinner endDateSpinner;
-    private JTextArea descriptionArea;
-    private JTextArea notesArea;
-    public TripFormDialog(Frame owner, TripService tripService, Trip existingTrip, Runnable onSaved) {
-        super(owner, existingTrip == null ? "Create New Trip" : "Edit Trip", true);
+    private final Trip        existing;
+    private final Runnable    onSaved;
+
+    private JTextField  destinationField;
+    private DateSpinner startSpinner;
+    private DateSpinner endSpinner;
+    private JTextArea   descArea;
+    private JTextArea   notesArea;
+
+    public TripFormDialog(JFrame owner, TripService tripService,
+                          Trip existing, Runnable onSaved) {
+        super(owner, existing == null ? "New Trip" : "Edit Trip", true);
         this.tripService = tripService;
-        this.existingTrip = existingTrip;
-        this.onSaved = onSaved;
+        this.existing    = existing;
+        this.onSaved     = onSaved;
         build(owner);
     }
-    private void build(Frame owner) {
-        setSize(560, 540);
+
+    private void build(JFrame owner) {
+        setSize(500, 420);
         setLocationRelativeTo(owner);
         setLayout(new BorderLayout());
-        JLabel title = GuiUtil.pageTitle(existingTrip == null ? "🌍 New Trip" : "✏ Edit Trip");
+
+        JLabel title = GuiUtil.pageTitle(existing == null ? "🧳 New Trip" : "✏ Edit Trip");
         title.setBorder(BorderFactory.createEmptyBorder(18, 22, 8, 22));
         add(title, BorderLayout.NORTH);
+
         JPanel form = new JPanel(new GridBagLayout());
-        form.setBorder(BorderFactory.createEmptyBorder(12, 22, 12, 22));
-        GridBagConstraints gbc = GuiUtil.gbc();
+        form.setBorder(BorderFactory.createEmptyBorder(10, 22, 10, 22));
+        GridBagConstraints g = GuiUtil.gbc();
+
         destinationField = new JTextField();
-        startDateSpinner = new DateSpinner(existingTrip == null ? LocalDate.now() : existingTrip.getStartDate());
-        endDateSpinner = new DateSpinner(existingTrip == null ? LocalDate.now().plusDays(3) : existingTrip.getEndDate());
-        descriptionArea = new JTextArea(4, 30);
-        notesArea = new JTextArea(4, 30);
-        descriptionArea.setLineWrap(true);
-        descriptionArea.setWrapStyleWord(true);
-        notesArea.setLineWrap(true);
-        notesArea.setWrapStyleWord(true);
-        if (existingTrip != null) {
-            destinationField.setText(existingTrip.getDestination());
-            descriptionArea.setText(existingTrip.getDescription());
-            notesArea.setText(existingTrip.getNotes());
+        startSpinner     = new DateSpinner(LocalDate.now());
+        endSpinner       = new DateSpinner(LocalDate.now().plusDays(7));
+        descArea         = new JTextArea(3, 20);
+        descArea.setLineWrap(true); descArea.setWrapStyleWord(true);
+        notesArea        = new JTextArea(3, 20);
+        notesArea.setLineWrap(true); notesArea.setWrapStyleWord(true);
+
+        if (existing != null) {
+            destinationField.setText(existing.getDestination());
+            startSpinner.setDate(existing.getStartDate());
+            endSpinner.setDate(existing.getEndDate());
+            descArea.setText(existing.getDescription());
+            notesArea.setText(existing.getNotes());
         }
-        addRow(form, gbc, 0, "Destination", destinationField);
-        addRow(form, gbc, 1, "Start Date", startDateSpinner);
-        addRow(form, gbc, 2, "End Date", endDateSpinner);
-        addRow(form, gbc, 3, "Description", new JScrollPane(descriptionArea));
-        addRow(form, gbc, 4, "Notes", new JScrollPane(notesArea));
+
+        addRow(form, g, 0, "Destination *", destinationField);
+        addRow(form, g, 1, "Start Date",    startSpinner);
+        addRow(form, g, 2, "End Date",      endSpinner);
+        addRow(form, g, 3, "Description",   new JScrollPane(descArea));
+        if (existing != null) addRow(form, g, 4, "Notes", new JScrollPane(notesArea));
+
         add(form, BorderLayout.CENTER);
-        JPanel actions = new JPanel();
-        actions.setBorder(BorderFactory.createEmptyBorder(8, 22, 18, 22));
-        JButton cancelButton = new JButton("Cancel");
-        JButton saveButton = GuiUtil.primaryButton(existingTrip == null ? "Create Trip" : "Save Changes");
-        cancelButton.addActionListener(e -> dispose());
-        saveButton.addActionListener(e -> save());
-        actions.add(cancelButton);
-        actions.add(saveButton);
+
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 10));
+        JButton cancel = new JButton("Cancel");
+        JButton save   = GuiUtil.primaryButton("Save");
+        cancel.addActionListener(e -> dispose());
+        save.addActionListener(e -> save());
+        actions.add(cancel);
+        actions.add(save);
         add(actions, BorderLayout.SOUTH);
     }
-    private void addRow(JPanel panel, GridBagConstraints gbc, int row, String label, java.awt.Component field) {
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.weightx = 0;
-        panel.add(new JLabel(label), gbc);
-        gbc.gridx = 1;
-        gbc.weightx = 1;
-        panel.add(field, gbc);
+
+    private void addRow(JPanel p, GridBagConstraints g, int row, String lbl, Component comp) {
+        g.gridx = 0; g.gridy = row; g.weightx = 0;
+        p.add(new JLabel(lbl), g);
+        g.gridx = 1; g.weightx = 1;
+        p.add(comp, g);
     }
+
     private void save() {
         try {
-            String destination = destinationField.getText().trim();
-            LocalDate start = startDateSpinner.getDate();
-            LocalDate end = endDateSpinner.getDate();
-            String description = descriptionArea.getText();
-            String notes = notesArea.getText();
-            if (existingTrip == null) {
-                tripService.createTrip(destination, start, end, description);
+            String dest  = destinationField.getText().trim();
+            LocalDate s  = startSpinner.getDate();
+            LocalDate e  = endSpinner.getDate();
+            String desc  = descArea.getText();
+            String notes = notesArea != null ? notesArea.getText() : "";
+
+            if (existing == null) {
+                tripService.createTrip(SessionManager.currentUserId(), dest, s, e, desc);
             } else {
-                tripService.updateTrip(existingTrip.getId(), destination, start, end, description, notes);
+                tripService.updateTrip(existing.getId(), dest, s, e, desc, notes);
             }
             onSaved.run();
             dispose();
-        } catch (IllegalArgumentException e) {
-            JOptionPane.showMessageDialog(this, e.getMessage(), "Validation Error", JOptionPane.WARNING_MESSAGE);
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Validation Error", JOptionPane.WARNING_MESSAGE);
         }
     }
 }

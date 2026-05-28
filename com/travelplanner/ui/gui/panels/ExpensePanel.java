@@ -1,4 +1,5 @@
 package com.travelplanner.ui.gui.panels;
+ 
 import com.travelplanner.model.Expense;
 import com.travelplanner.model.ExpenseCategory;
 import com.travelplanner.service.ExpenseService;
@@ -6,56 +7,58 @@ import com.travelplanner.ui.gui.components.BudgetBarChartPanel;
 import com.travelplanner.ui.gui.components.CategoryBadgeRenderer;
 import com.travelplanner.ui.gui.dialogs.ExpenseFormDialog;
 import com.travelplanner.ui.gui.util.GuiUtil;
-import javax.swing.BorderFactory;
-import javax.swing.JButton;
-import javax.swing.JFrame;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTable;
-import javax.swing.JLabel;
+ 
+import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
-import java.awt.BorderLayout;
-import java.awt.FlowLayout;
-import java.awt.GridLayout;
-import java.awt.Window;
+import java.awt.*;
 import java.util.List;
 import java.util.Map;
+ 
 public class ExpensePanel extends JPanel {
+ 
     private final int tripId;
     private final ExpenseService expenseService;
     private final Runnable onChanged;
+ 
     private DefaultTableModel model;
     private JTable table;
     private JLabel totalLabel;
     private BudgetBarChartPanel chartPanel;
+ 
     public ExpensePanel(int tripId, ExpenseService expenseService, Runnable onChanged) {
-        this.tripId = tripId;
+        this.tripId         = tripId;
         this.expenseService = expenseService;
-        this.onChanged = onChanged;
+        this.onChanged      = onChanged;
         setOpaque(false);
-        setLayout(new BorderLayout(0, 12));
+        setLayout(new BorderLayout(0, 10));
         build();
         refresh();
     }
+ 
     private void build() {
+        // ── Header ─────────────────────────────────────────────────────────
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
         header.add(GuiUtil.sectionTitle("Expenses"), BorderLayout.WEST);
-        JButton addButton = GuiUtil.primaryButton("+ Add Expense");
-        addButton.addActionListener(e -> openAddDialog());
-        header.add(addButton, BorderLayout.EAST);
+        JButton addBtn = GuiUtil.primaryButton("+ Add Expense");
+        addBtn.addActionListener(e -> openAddDialog());
+        header.add(addBtn, BorderLayout.EAST);
         add(header, BorderLayout.NORTH);
-        JPanel center = new JPanel(new GridLayout(1, 2, 14, 14));
-        center.setOpaque(false);
-        model = new DefaultTableModel(new Object[]{"ID", "Category", "Description", "Amount", "Date"}, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-            @Override
-            public Class<?> getColumnClass(int columnIndex) {
-                return switch (columnIndex) {
+ 
+        // ── Split pane: table (left 60%) | summary (right 40%) ────────────
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        split.setResizeWeight(0.60);
+        split.setDividerSize(6);
+        split.setBorder(BorderFactory.createEmptyBorder());
+        split.setOpaque(false);
+ 
+        // Left: table
+        model = new DefaultTableModel(
+                new Object[]{"ID", "Category", "Description", "Amount ₱", "Date"}, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+            @Override public Class<?> getColumnClass(int c) {
+                return switch (c) {
                     case 0 -> Integer.class;
                     case 1 -> ExpenseCategory.class;
                     case 3 -> Double.class;
@@ -63,114 +66,141 @@ public class ExpensePanel extends JPanel {
                 };
             }
         };
+ 
         table = new JTable(model);
-        table.setRowHeight(34);
+        table.setRowHeight(28);
+        // FIX: enable both horizontal AND vertical grid lines for clear row/column separation
+        table.setShowVerticalLines(true);
+        table.setShowHorizontalLines(true);
+        table.setGridColor(new Color(60, 66, 88));          // FIX: visible but subtle grid colour
+        table.setIntercellSpacing(new Dimension(1, 1));      // FIX: 1px spacing around cells
+        table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 12));
+        table.getColumnModel().getColumn(0).setMaxWidth(45);
+        table.getColumnModel().getColumn(1).setPreferredWidth(110);
         table.getColumnModel().getColumn(1).setCellRenderer(new CategoryBadgeRenderer());
-        table.getColumnModel().getColumn(0).setMaxWidth(60);
+        table.getColumnModel().getColumn(2).setPreferredWidth(130);  // FIX: explicit desc width
+        table.getColumnModel().getColumn(3).setPreferredWidth(80);   // FIX: explicit amount width
+        // FIX: right-align the Amount column for readability
+        DefaultTableCellRenderer rightAlign = new DefaultTableCellRenderer();
+        rightAlign.setHorizontalAlignment(SwingConstants.RIGHT);
+        table.getColumnModel().getColumn(3).setCellRenderer(rightAlign);
+        table.setAutoCreateRowSorter(true);
+ 
         JScrollPane tableScroll = new JScrollPane(table);
-        tableScroll.setBorder(BorderFactory.createEmptyBorder());
-        JPanel tableCard = GuiUtil.cardPanel();
-        tableCard.setLayout(new BorderLayout());
-        tableCard.add(tableScroll, BorderLayout.CENTER);
-        JPanel tableActions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        tableScroll.setBorder(BorderFactory.createLineBorder(new Color(55, 62, 88), 1));
+ 
+        JPanel leftPanel = new JPanel(new BorderLayout(0, 6));
+        leftPanel.setOpaque(false);
+        leftPanel.add(tableScroll, BorderLayout.CENTER);
+ 
+        // Table action buttons
+        JPanel tableActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         tableActions.setOpaque(false);
-        JButton editButton = new JButton("Edit");
-        JButton deleteButton = GuiUtil.dangerButton("Delete");
-        editButton.addActionListener(e -> editSelected());
-        deleteButton.addActionListener(e -> deleteSelected());
-        tableActions.add(editButton);
-        tableActions.add(deleteButton);
-        tableCard.add(tableActions, BorderLayout.SOUTH);
-        JPanel summaryCard = GuiUtil.cardPanel();
-        summaryCard.setLayout(new BorderLayout());
-        totalLabel = new JLabel("Total: 0.00");
-        totalLabel.setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 24));
+        JButton editBtn   = GuiUtil.ghostButton("✏ Edit");
+        JButton deleteBtn = GuiUtil.dangerButton("🗑 Delete");
+        editBtn.addActionListener(e -> editSelected());
+        deleteBtn.addActionListener(e -> deleteSelected());
+        tableActions.add(editBtn);
+        tableActions.add(deleteBtn);
+        leftPanel.add(tableActions, BorderLayout.SOUTH);
+        split.setLeftComponent(leftPanel);
+ 
+        // Right: summary + chart
+        JPanel rightPanel = new JPanel(new BorderLayout(0, 10));
+        rightPanel.setOpaque(false);
+        rightPanel.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 0));
+ 
+        // Total badge
+        totalLabel = new JLabel("₱ 0.00");
+        totalLabel.setFont(new Font("SansSerif", Font.BOLD, 26));
+        totalLabel.setForeground(GuiUtil.WARNING);
+ 
+        JPanel totalCard = new JPanel(new BorderLayout(0, 4));
+        totalCard.setOpaque(false);
+        totalCard.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(55, 62, 88), 1, true),
+                BorderFactory.createEmptyBorder(12, 14, 12, 14)
+        ));
+        JLabel totalLblHdr = GuiUtil.subLabel("TOTAL SPENT");
+        totalCard.add(totalLblHdr, BorderLayout.NORTH);
+        totalCard.add(totalLabel,  BorderLayout.CENTER);
+        rightPanel.add(totalCard, BorderLayout.NORTH);
+ 
+        // Bar chart — FIX: increased preferred height so amounts are not clipped
+        JPanel chartCard = new JPanel(new BorderLayout(0, 6));
+        chartCard.setOpaque(false);
+        chartCard.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(55, 62, 88), 1, true),
+                BorderFactory.createEmptyBorder(12, 14, 12, 14)
+        ));
+        chartCard.add(GuiUtil.sectionTitle("By Category"), BorderLayout.NORTH);
         chartPanel = new BudgetBarChartPanel();
-        summaryCard.add(totalLabel, BorderLayout.NORTH);
-        summaryCard.add(chartPanel, BorderLayout.CENTER);
-        center.add(tableCard);
-        center.add(summaryCard);
-        add(center, BorderLayout.CENTER);
+        chartCard.add(chartPanel, BorderLayout.CENTER);
+        rightPanel.add(chartCard, BorderLayout.CENTER);
+ 
+        split.setRightComponent(rightPanel);
+        add(split, BorderLayout.CENTER);
     }
+ 
     public void refresh() {
         model.setRowCount(0);
         List<Expense> expenses;
         try {
             expenses = expenseService.getExpensesByTripId(tripId);
         } catch (IllegalArgumentException e) {
-            JOptionPane.showMessageDialog(this, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        for (Expense expense : expenses) {
+        for (Expense ex : expenses) {
             model.addRow(new Object[]{
-                    expense.getId(),
-                    expense.getCategory(),
-                    expense.getDescription(),
-                    expense.getAmount(),
-                    expense.getDate()
+                    ex.getId(), ex.getCategory(),
+                    ex.getDescription(), ex.getAmount(), ex.getDate()
             });
         }
         double total = expenseService.getTotalExpensesForTrip(tripId);
-        totalLabel.setText(String.format("Total: %.2f", total));
+        totalLabel.setText(String.format("₱ %.2f", total));
         Map<ExpenseCategory, Double> summary = expenseService.getBudgetSummaryByCategory(tripId);
         chartPanel.setData(summary);
-        revalidate();
-        repaint();
+        revalidate(); repaint();
     }
-    private Integer selectedExpenseId() {
+ 
+    private void openAddDialog() {
+        new ExpenseFormDialog(ownerFrame(), tripId, expenseService, null, this::changed).setVisible(true);
+    }
+ 
+    private void editSelected() {
+        Expense exp = selectedExpense();
+        if (exp == null) return;
+        new ExpenseFormDialog(ownerFrame(), tripId, expenseService, exp, this::changed).setVisible(true);
+    }
+ 
+    private void deleteSelected() {
+        Integer id = selectedId();
+        if (id == null) return;
+        int ok = JOptionPane.showConfirmDialog(this, "Delete this expense?", "Confirm",
+                JOptionPane.YES_NO_OPTION);
+        if (ok == JOptionPane.YES_OPTION) { expenseService.deleteExpense(id); changed(); }
+    }
+ 
+    private void changed() { refresh(); onChanged.run(); }
+ 
+    private Integer selectedId() {
         int row = table.getSelectedRow();
         if (row < 0) {
-            JOptionPane.showMessageDialog(this, "Select an expense first.", "No Selection", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Select an expense first.");
             return null;
         }
-        int modelRow = table.convertRowIndexToModel(row);
-        return (Integer) model.getValueAt(modelRow, 0);
+        return (Integer) model.getValueAt(table.convertRowIndexToModel(row), 0);
     }
+ 
     private Expense selectedExpense() {
-        Integer id = selectedExpenseId();
-        if (id == null) {
-            return null;
-        }
-        return expenseService.getExpensesByTripId(tripId)
-                .stream()
-                .filter(expense -> expense.getId() == id)
-                .findFirst()
-                .orElse(null);
+        Integer id = selectedId();
+        if (id == null) return null;
+        return expenseService.getExpensesByTripId(tripId).stream()
+                .filter(e -> e.getId() == id).findFirst().orElse(null);
     }
-    private void openAddDialog() {
-        ExpenseFormDialog dialog = new ExpenseFormDialog(ownerFrame(), tripId, expenseService, null, this::changed);
-        dialog.setVisible(true);
-    }
-    private void editSelected() {
-        Expense expense = selectedExpense();
-        if (expense == null) {
-            return;
-        }
-        ExpenseFormDialog dialog = new ExpenseFormDialog(ownerFrame(), tripId, expenseService, expense, this::changed);
-        dialog.setVisible(true);
-    }
-    private void deleteSelected() {
-        Integer id = selectedExpenseId();
-        if (id == null) {
-            return;
-        }
-        int confirm = JOptionPane.showConfirmDialog(
-                this,
-                "Delete this expense?",
-                "Confirm Delete",
-                JOptionPane.YES_NO_OPTION
-        );
-        if (confirm == JOptionPane.YES_OPTION) {
-            expenseService.deleteExpense(id);
-            changed();
-        }
-    }
-    private void changed() {
-        refresh();
-        onChanged.run();
-    }
+ 
     private JFrame ownerFrame() {
-        Window window = javax.swing.SwingUtilities.getWindowAncestor(this);
-        return window instanceof JFrame frame ? frame : null;
+        Window w = SwingUtilities.getWindowAncestor(this);
+        return w instanceof JFrame f ? f : null;
     }
 }

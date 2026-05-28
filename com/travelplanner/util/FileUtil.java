@@ -5,32 +5,25 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public final class FileUtil {
-    private FileUtil() {
-    }
+    private FileUtil() {}
 
     public static void initializeDataFiles() {
         try {
-            Path dataDirectory = Path.of("data");
+            Path dir = Path.of("data");
+            if (!Files.exists(dir)) Files.createDirectory(dir);
 
-            if (!Files.exists(dataDirectory)) {
-                Files.createDirectory(dataDirectory);
-            }
-
-            createFileIfMissing("data/trips.txt");
-            createFileIfMissing("data/itineraries.txt");
-            createFileIfMissing("data/expenses.txt");
-            createFileIfMissing("data/travel_logs.txt");
-
+            createIfMissing("data/users.txt");        // NEW
+            createIfMissing("data/trips.txt");
+            createIfMissing("data/itineraries.txt");
+            createIfMissing("data/expenses.txt");
+            createIfMissing("data/travel_logs.txt");
         } catch (IOException e) {
             System.out.println("Error initializing data files: " + e.getMessage());
         }
     }
 
-    private static void createFileIfMissing(String fileName) throws IOException {
-        Path path = Path.of(fileName);
-
-        if (!Files.exists(path)) {
-            Files.createFile(path);
-        }
+    private static void createIfMissing(String fileName) throws IOException {
+        Path p = Path.of(fileName);
+        if (!Files.exists(p)) Files.createFile(p);
     }
 }

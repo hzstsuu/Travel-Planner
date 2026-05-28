@@ -16,25 +16,37 @@ public class TripService {
         this.tripRepository = tripRepository;
     }
 
-    public Trip createTrip(
-            String destination,
-            LocalDate startDate,
-            LocalDate endDate,
-            String description
-    ) {
-        validateTripDates(startDate, endDate);
+    // ── User-scoped creation ───────────────────────────────────────────────
 
+    public Trip createTrip(int userId, String destination,
+                           LocalDate startDate, LocalDate endDate,
+                           String description) {
+        validateDates(startDate, endDate);
         Trip trip = new Trip();
+        trip.setUserId(userId);
         trip.setDestination(destination);
         trip.setStartDate(startDate);
         trip.setEndDate(endDate);
         trip.setDescription(description);
         trip.setNotes("");
         trip.setStatus(TripStatus.PLANNED);
-
         return tripRepository.save(trip);
     }
 
+    /** Legacy no-user overload kept for ConsoleMenu compatibility. */
+    public Trip createTrip(String destination, LocalDate startDate,
+                           LocalDate endDate, String description) {
+        return createTrip(0, destination, startDate, endDate, description);
+    }
+
+    // ── Queries ────────────────────────────────────────────────────────────
+
+    /** All trips for a specific user. */
+    public List<Trip> getAllTrips(int userId) {
+        return tripRepository.findByUserId(userId);
+    }
+
+    /** All trips across all users (used for leaderboard). */
     public List<Trip> getAllTrips() {
         return tripRepository.findAll();
     }
@@ -43,43 +55,37 @@ public class TripService {
         return tripRepository.findById(id);
     }
 
-    public boolean updateTrip(
-            int id,
-            String destination,
-            LocalDate startDate,
-            LocalDate endDate,
-            String description,
-            String notes
-    ) {
-        validateTripDates(startDate, endDate);
+    public List<Trip> getCompletedTrips(int userId) {
+        return getAllTrips(userId).stream()
+                .filter(Trip::isCompleted).collect(Collectors.toList());
+    }
 
-        Optional<Trip> optionalTrip = tripRepository.findById(id);
+    public List<Trip> getCompletedTrips() {
+        return getAllTrips().stream()
+                .filter(Trip::isCompleted).collect(Collectors.toList());
+    }
 
-        if (optionalTrip.isEmpty()) {
-            return false;
-        }
+    // ── Mutations ──────────────────────────────────────────────────────────
 
-        Trip trip = optionalTrip.get();
-        trip.setDestination(destination);
-        trip.setStartDate(startDate);
-        trip.setEndDate(endDate);
-        trip.setDescription(description);
-        trip.setNotes(notes);
-
-        return tripRepository.update(trip);
+    public boolean updateTrip(int id, String destination,
+                              LocalDate startDate, LocalDate endDate,
+                              String description, String notes) {
+        validateDates(startDate, endDate);
+        return tripRepository.findById(id).map(trip -> {
+            trip.setDestination(destination);
+            trip.setStartDate(startDate);
+            trip.setEndDate(endDate);
+            trip.setDescription(description);
+            trip.setNotes(notes);
+            return tripRepository.update(trip);
+        }).orElse(false);
     }
 
     public boolean updateNotes(int tripId, String notes) {
-        Optional<Trip> optionalTrip = tripRepository.findById(tripId);
-
-        if (optionalTrip.isEmpty()) {
-            return false;
-        }
-
-        Trip trip = optionalTrip.get();
-        trip.setNotes(notes);
-
-        return tripRepository.update(trip);
+        return tripRepository.findById(tripId).map(trip -> {
+            trip.setNotes(notes);
+            return tripRepository.update(trip);
+        }).orElse(false);
     }
 
     public boolean deleteTrip(int id) {
@@ -87,32 +93,18 @@ public class TripService {
     }
 
     public boolean markTripCompleted(int id) {
-        Optional<Trip> optionalTrip = tripRepository.findById(id);
-
-        if (optionalTrip.isEmpty()) {
-            return false;
-        }
-
-        Trip trip = optionalTrip.get();
-        trip.setStatus(TripStatus.COMPLETED);
-
-        return tripRepository.update(trip);
+        return tripRepository.findById(id).map(trip -> {
+            trip.setStatus(TripStatus.COMPLETED);
+            return tripRepository.update(trip);
+        }).orElse(false);
     }
 
-    public List<Trip> getCompletedTrips() {
-        return tripRepository.findAll()
-                .stream()
-                .filter(Trip::isCompleted)
-                .collect(Collectors.toList());
-    }
+    // ── Helpers ────────────────────────────────────────────────────────────
 
-    private void validateTripDates(LocalDate startDate, LocalDate endDate) {
-        if (startDate == null || endDate == null) {
+    private void validateDates(LocalDate start, LocalDate end) {
+        if (start == null || end == null)
             throw new IllegalArgumentException("Trip dates cannot be empty.");
-        }
-
-        if (endDate.isBefore(startDate)) {
+        if (end.isBefore(start))
             throw new IllegalArgumentException("End date cannot be before start date.");
-        }
     }
 }

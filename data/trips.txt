@@ -1,2 +1,5 @@
-1|La Union|2026-05-21|2026-05-24|Vacation||COMPLETED
-2|National University - Davao|2026-05-21|2026-05-24|Interview with schoolmates||PLANNED
+1|1|National University - Manila|2026-05-29|2026-05-29|Presentation of OOP Application||PLANNED
+2|1|National University - Manila|2026-05-29|2026-05-29|NU Museum Tour - Film||PLANNED
+3|2|Philippines|2026-05-28|2026-06-04|Meet with Rockheart||PLANNED
+4|2|Japan|2026-05-27|2026-05-29|Concert||COMPLETED
+5|3|Philippines|2026-05-28|2026-06-04|Meet with Rockheart||PLANNED
