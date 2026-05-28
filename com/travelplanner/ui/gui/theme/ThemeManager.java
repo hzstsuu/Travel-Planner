@@ -4,18 +4,9 @@ import javax.swing.*;
 import java.awt.*;
 
 /**
- * FlatLaf theme manager — zero hard imports, fully reflective.
+ * ── Enable FlatLaf  ───────────────────────────────
  *
- * ── How to enable FlatLaf (one-time setup) ───────────────────────────────
- *
- *  OPTION A  Maven — add to pom.xml:
- *    <dependency>
- *      <groupId>com.formdev</groupId>
- *      <artifactId>flatlaf</artifactId>
- *      <version>3.4.1</version>
- *    </dependency>
- *
- *  OPTION B  Manual JAR
+ *  Manual JAR
  *    1. Download flatlaf-3.4.1.jar from
  *       https://github.com/JFormDesigner/FlatLaf/releases/tag/3.4.1
  *    2. IntelliJ IDEA:
@@ -29,13 +20,6 @@ import java.awt.*;
  *         .vscode/settings.json:
  *         "java.project.referencedLibraries": ["lib/flatlaf-3.4.1.jar"]
  *
- * ── After adding the JAR ─────────────────────────────────────────────────
- *   No code changes needed. The reflective loader will find the class
- *   automatically and full dark/light theming will activate on next run.
- *
- * ── Without the JAR ──────────────────────────────────────────────────────
- *   The app still runs cleanly — it simply uses the system default L&F.
- *   The warning message below will no longer appear once the JAR is added.
  */
 public final class ThemeManager {
 

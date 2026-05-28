@@ -81,7 +81,7 @@ public class BudgetBarChartPanel extends JPanel {
             g2.setColor(new Color(0, 0, 0, 60));
             g2.drawString(amtStr, w - sw - 3, y + 12);
  
-            // FIX: bright white/light text on dark bg; falls back to dark on light bg via UIManager
+            // Bright white/light text on dark bg; falls back to dark on light bg via UIManager
             Color fg = UIManager.getColor("Label.foreground");
             if (fg == null) fg = Color.DARK_GRAY;
             // Always render in the theme's label colour so it's legible in both dark and light mode

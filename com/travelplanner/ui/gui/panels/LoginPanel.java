@@ -16,8 +16,7 @@ import java.util.prefs.Preferences;
  
 /**
  * Login screen with:
- *  1. Account picker  — Facebook-style cards. Each card has an X to hide it
- *                        from the list (account is restored when you log in again).
+ *  1. Account picker.
  *  2. Show/hide password eye toggle.
  *  3. Forgot password  — verified by Full Name + Username → set new password.
  */
@@ -589,7 +588,7 @@ public class LoginPanel extends JPanel {
     }
  
     // ── Static helpers (reused by SignUpPanel and SwitchAccountDialog) ────
-    // FIX: changed from package-private to public so dialogs package can access them
+    // Changed from package-private to public so dialogs package can access them
  
     public static JPanel buildPasswordRow(JPasswordField field) {
         JPanel row = new JPanel(new BorderLayout(4, 0));
