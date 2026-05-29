@@ -95,8 +95,8 @@ public class TravelPlannerApp extends JFrame {
     private void configureFrame() {
         setTitle("Travel Planner");
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        setMinimumSize(new Dimension(900, 560));
-        setSize(900, 560);
+        setMinimumSize(new Dimension(900, 600));
+        setSize(900, 600);
         setLocationRelativeTo(null);
     }
 
@@ -154,11 +154,21 @@ public class TravelPlannerApp extends JFrame {
         itineraryPanel = new ItineraryPanel(tripService, itineraryService);
         expensesPanel  = new ExpensesPanel(tripService, expenseService);
         logsPanel      = new LogsPanel(tripService, travelLogService);
-        settingsPanel  = new SettingsPanel(dark -> {
-            ThemeManager.setDark(dark);
-            if (statusLabel != null)
-                statusLabel.setText(dark ? "Dark theme enabled" : "Light theme enabled");
-        });
+
+        // ── SettingsPanel: pass all services + account-deleted callback ───
+        settingsPanel = new SettingsPanel(
+                dark -> {
+                    ThemeManager.setDark(dark);
+                    if (statusLabel != null)
+                        statusLabel.setText(dark ? "Dark theme enabled" : "Light theme enabled");
+                },
+                userService,
+                tripService,
+                expenseService,
+                itineraryService,
+                travelLogService,
+                this::logout   // after account deletion, return to leaderboard
+        );
 
         appContentPanel.removeAll();
         appContentPanel.setBorder(BorderFactory.createEmptyBorder(16, 18, 16, 18));
@@ -172,7 +182,7 @@ public class TravelPlannerApp extends JFrame {
         sidebarPanel = new SidebarPanel(
                 this::navigateTo,
                 this::logout,
-                this::switchAccount   // opens SwitchAccountDialog
+                this::switchAccount
         );
 
         appShell = new JPanel(new BorderLayout());
@@ -217,15 +227,12 @@ public class TravelPlannerApp extends JFrame {
     }
 
     // ── Switch Account ────────────────────────────────────────────────────
-    // Opens a modal dialog — user can cancel with "← Back to App"
-    // and their current session is NOT disrupted until they confirm a switch.
 
     private void switchAccount() {
         SwitchAccountDialog dlg = new SwitchAccountDialog(
                 this,
                 userService,
                 newUser -> {
-                    // Rebuild the app shell for the new user
                     onLoginSuccess(newUser);
                 }
         );
@@ -289,7 +296,7 @@ public class TravelPlannerApp extends JFrame {
         t.start();
     }
 
-    // ── Keyboard shortcuts (Ctrl+1–5, no tooltips shown in sidebar) ───────
+    // ── Keyboard shortcuts (Ctrl+1–5) ─────────────────────────────────────
 
     private void registerKeyboardShortcuts() {
         JRootPane rp = getRootPane();

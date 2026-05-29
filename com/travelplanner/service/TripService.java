@@ -92,9 +92,18 @@ public class TripService {
         return tripRepository.delete(id);
     }
 
+    /** Mark a trip as COMPLETED. */
     public boolean markTripCompleted(int id) {
         return tripRepository.findById(id).map(trip -> {
             trip.setStatus(TripStatus.COMPLETED);
+            return tripRepository.update(trip);
+        }).orElse(false);
+    }
+
+    /** Revert a COMPLETED trip back to PLANNED. */
+    public boolean markTripPlanned(int id) {
+        return tripRepository.findById(id).map(trip -> {
+            trip.setStatus(TripStatus.PLANNED);
             return tripRepository.update(trip);
         }).orElse(false);
     }

@@ -65,14 +65,37 @@ public class TripsPanel extends JPanel {
         } else {
             for (Trip t : trips) {
                 TripCardPanel card = new TripCardPanel(t, onOpen);
+
                 // Right-click context menu
                 JPopupMenu menu = new JPopupMenu();
-                JMenuItem complete = new JMenuItem("Mark as Completed");
-                complete.addActionListener(e -> {
-                    tripService.markTripCompleted(t.getId());
-                    refresh();
-                });
-                JMenuItem delete = new JMenuItem("Delete Trip");
+
+                // ── Toggle status item (changes label based on current status) ──
+                if (t.getStatus() == TripStatus.COMPLETED) {
+                    JMenuItem revertItem = new JMenuItem("↩ Mark as Planned");
+                    revertItem.addActionListener(e -> {
+                        int ok = JOptionPane.showConfirmDialog(
+                                this,
+                                "Revert \"" + t.getDestination() + "\" back to Planned?",
+                                "Confirm",
+                                JOptionPane.YES_NO_OPTION
+                        );
+                        if (ok == JOptionPane.YES_OPTION) {
+                            tripService.markTripPlanned(t.getId());
+                            refresh();
+                        }
+                    });
+                    menu.add(revertItem);
+                } else {
+                    JMenuItem completeItem = new JMenuItem("✅ Mark as Completed");
+                    completeItem.addActionListener(e -> {
+                        tripService.markTripCompleted(t.getId());
+                        refresh();
+                    });
+                    menu.add(completeItem);
+                }
+
+                // ── Delete ────────────────────────────────────────────────────
+                JMenuItem delete = new JMenuItem("🗑 Delete Trip");
                 delete.setForeground(GuiUtil.DANGER);
                 delete.addActionListener(e -> {
                     int ok = JOptionPane.showConfirmDialog(this,
@@ -86,7 +109,7 @@ public class TripsPanel extends JPanel {
                         refresh();
                     }
                 });
-                if (t.getStatus() != TripStatus.COMPLETED) menu.add(complete);
+
                 menu.add(delete);
                 card.setComponentPopupMenu(menu);
                 cardsPanel.add(card);

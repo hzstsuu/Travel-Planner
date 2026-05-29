@@ -70,7 +70,7 @@ public class UserService {
     }
  
     // ── Delete Account ────────────────────────────────────────────────────
- 
+
     /**
      * Permanently delete a user account by ID.
      * The caller is responsible for also deleting the user's trips,
@@ -82,7 +82,7 @@ public class UserService {
     public boolean deleteAccount(int userId) {
         return userRepository.delete(userId);
     }
- 
+
     // ── Queries ───────────────────────────────────────────────────────────
  
     /**
