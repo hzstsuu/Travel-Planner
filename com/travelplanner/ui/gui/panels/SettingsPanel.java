@@ -157,10 +157,10 @@ public class SettingsPanel extends JPanel {
         aboutCard.setMaximumSize(new Dimension(600, 90));
         aboutCard.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel appName = new JLabel("Travel Planner — v2.0");
+        JLabel appName = new JLabel("Travel Planner — pogi edition v.1.0");
         appName.setFont(new Font("SansSerif", Font.BOLD, 13));
 
-        JLabel techStack = new JLabel("Built with Java Swing + FlatLaf 3.4.1");
+        JLabel techStack = new JLabel("Built with Java Swing");
         techStack.setFont(new Font("SansSerif", Font.PLAIN, 12));
         techStack.setForeground(new Color(130, 140, 160));
 
