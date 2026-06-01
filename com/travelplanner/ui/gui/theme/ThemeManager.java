@@ -7,10 +7,27 @@ import java.awt.*;
 
 /**
  * Nimbus-based theme manager — zero external dependencies.
+ *
+ * CRITICAL ORDERING RULE:
+ *   Palette tokens MUST be written to UIManager BEFORE setLookAndFeel() is
+ *   called. Nimbus reads UIManager at install time to seed its derived colours.
+ *   Installing first then setting tokens causes the first paint to use default
+ *   Nimbus colours (the "wrong theme on startup" bug).
+ *
+ *   Correct order:
+ *     1. set all palette tokens into UIManager
+ *     2. call UIManager.setLookAndFeel(new NimbusLookAndFeel())  ← one call
+ *     3. write the same tokens into getLookAndFeelDefaults()      ← for runtime toggles
+ *
+ * CALL SITE:
+ *   ThemeManager.installDarkTheme() must be called in Main.java BEFORE
+ *   SwingUtilities.invokeLater so that no Swing component is ever constructed
+ *   without the correct palette in place.
+ *
  * Public API:
- *   ThemeManager.installDarkTheme()   — call once at startup
- *   ThemeManager.installLightTheme()  — call once at startup
- *   ThemeManager.setDark(boolean)     — toggle at runtime
+ *   ThemeManager.installDarkTheme()   — call once at startup (before invokeLater)
+ *   ThemeManager.installLightTheme()  — call once at startup (before invokeLater)
+ *   ThemeManager.setDark(boolean)     — toggle at runtime from Settings
  *   ThemeManager.isDark()             — query current mode
  *   ThemeManager.updateAllWindows()   — force-repaint all windows
  */
@@ -22,26 +39,29 @@ public final class ThemeManager {
 
     // ── Public API ────────────────────────────────────────────────────────
 
-    /** Call once before any Swing window is created. Installs dark theme. */
+    /**
+     * Call ONCE in Main.java before SwingUtilities.invokeLater().
+     * Installs Nimbus with the dark palette baked in from the first pixel.
+     */
     public static void installDarkTheme() {
         applyNimbus(true);
-        dark = true;
-    }
-
-    /** Call once before any Swing window is created. Installs light theme. */
-    public static void installLightTheme() {
-        applyNimbus(false);
-        dark = false;
     }
 
     /**
-     * Switch theme at runtime (called from the Settings toggle).
-     * Automatically repaints all open windows.
+     * Call ONCE in Main.java before SwingUtilities.invokeLater().
+     * Installs Nimbus with the light palette baked in from the first pixel.
+     */
+    public static void installLightTheme() {
+        applyNimbus(false);
+    }
+
+    /**
+     * Toggle at runtime (called from the Settings panel toggle).
+     * Re-applies the full palette and repaints every open window.
      */
     public static void setDark(boolean wantDark) {
         if (wantDark == dark) return;
         applyNimbus(wantDark);
-        dark = wantDark;
         updateAllWindows();
     }
 
@@ -56,142 +76,121 @@ public final class ThemeManager {
 
     public static boolean isDark() { return dark; }
 
-    // ── Core installer ────────────────────────────────────────────────────
+    // ── Core: correct install order ───────────────────────────────────────
 
-    /**
-     * Installs Nimbus and immediately overrides its named colour tokens
-     * with either the dark or light palette.
-     *
-     * Nimbus reads these keys from UIManager.getLookAndFeelDefaults() after
-     * the LAF is installed, so we set them before AND after installation to
-     * guarantee they are picked up in both code paths (initial install vs
-     * runtime toggle).
-     */
     private static void applyNimbus(boolean wantDark) {
+        dark = wantDark;
+
+        // STEP 1 — write palette into UIManager BEFORE installing Nimbus.
+        //          Nimbus seeds all its derived colours from these at install time.
+        if (wantDark) writePalette(DARK);
+        else          writePalette(LIGHT);
+
+        // STEP 2 — install Nimbus exactly once. It now reads the palette we just set.
         try {
-            // 1. Install Nimbus
             UIManager.setLookAndFeel(new NimbusLookAndFeel());
         } catch (UnsupportedLookAndFeelException e) {
-            System.err.println("[ThemeManager] Nimbus not available: " + e.getMessage());
+            System.err.println("[ThemeManager] Nimbus unavailable: " + e.getMessage());
             return;
         }
 
-        // 2. Push colour tokens into BOTH UIManager maps so Nimbus picks them up
-        if (wantDark) {
-            applyDarkPalette();
-        } else {
-            applyLightPalette();
+        // STEP 3 — mirror palette into getLookAndFeelDefaults() so that runtime
+        //          toggles (which happen after LAF is installed) also take effect.
+        UIDefaults laf = UIManager.getLookAndFeelDefaults();
+        for (String[] entry : (wantDark ? DARK : LIGHT)) {
+            laf.put(entry[0], new ColorUIResource(new Color((int) Long.parseLong(entry[1], 16))));
         }
 
-        // 3. Re-install so Nimbus rebuilds its derived colours from our tokens
-        try {
-            UIManager.setLookAndFeel(new NimbusLookAndFeel());
-        } catch (UnsupportedLookAndFeelException ignored) {}
-
-        // 4. General compact/aesthetic tweaks (work on any L&F)
+        // STEP 4 — non-colour tweaks that work on any L&F
         applyCommonDefaults(wantDark);
     }
 
-    // ── Dark palette ──────────────────────────────────────────────────────
+    // ── Palette tables  [key, rrggbb hex] ─────────────────────────────────
 
-    private static void applyDarkPalette() {
-        // Primary surfaces
-        set("control",              0x1C1E2E);   // panel / window background
-        set("info",                 0x252738);   // tooltip background
-        set("nimbusBase",           0x2A2D44);   // base tint for derived colours
-        set("nimbusBlueGrey",       0x3A3E58);   // secondary surfaces, borders
-        set("nimbusLightBackground",0x1C1E2E);   // text field / list background
-
+    private static final String[][] DARK = {
+        // Surfaces
+        { "control",               "1C1E2E" },  // panel / window background
+        { "info",                  "252738" },  // tooltip background
+        { "nimbusBase",            "2A2D44" },  // base tint — drives many derived colours
+        { "nimbusBlueGrey",        "3A3E58" },  // secondary surfaces, borders
+        { "nimbusLightBackground", "1C1E2E" },  // text-field / list background
         // Text
-        set("text",                 0xDDE1EE);   // default foreground
-        set("nimbusSelectedText",   0xFFFFFF);   // selected text foreground
-        set("nimbusDisabledText",   0x666880);   // disabled foreground
-        set("infoText",             0xDDE1EE);   // tooltip text
-        set("menuText",             0xDDE1EE);   // menu item text
-        set("textHighlight",        0x3D5299);   // text selection background
+        { "text",                  "DDE1EE" },  // default foreground
+        { "nimbusSelectedText",    "FFFFFF" },
+        { "nimbusDisabledText",    "666880" },
+        { "infoText",              "DDE1EE" },
+        { "menuText",              "DDE1EE" },
+        { "textHighlight",         "3D5299" },  // text-selection background
+        // Interactive / accent
+        { "nimbusSelectionBackground", "3D5299" },
+        { "nimbusFocus",               "5282FF" },
+        { "nimbusOrange",              "5282FF" },
+        // Borders
+        { "nimbusBorder",          "3C4260" },
+        // Scrollbar
+        { "scrollbar",             "252738" },
+        { "nimbusScrollBar",       "3A3E58" },
+        // Menu
+        { "menu",                  "252738" },
+        { "menuHighlight",         "3D5299" },
+    };
 
-        // Accent / interactive
-        set("nimbusSelectionBackground", 0x3D5299);  // list/table row selection
-        set("nimbusFocus",               0x5282FF);  // focus ring colour
-        set("nimbusOrange",              0x5282FF);  // progress bar / slider fill
+    private static final String[][] LIGHT = {
+        // Surfaces
+        { "control",               "F0F2F8" },
+        { "info",                  "FFFBE6" },
+        { "nimbusBase",            "5C7AB5" },
+        { "nimbusBlueGrey",        "8A9CC0" },
+        { "nimbusLightBackground", "FFFFFF" },
+        // Text
+        { "text",                  "1A1C2E" },
+        { "nimbusSelectedText",    "FFFFFF" },
+        { "nimbusDisabledText",    "9099B0" },
+        { "infoText",              "1A1C2E" },
+        { "menuText",              "1A1C2E" },
+        { "textHighlight",         "C5D3F5" },
+        // Interactive / accent
+        { "nimbusSelectionBackground", "3464EB" },
+        { "nimbusFocus",               "3464EB" },
+        { "nimbusOrange",              "3464EB" },
+        // Borders
+        { "nimbusBorder",          "C4CAD9" },
+        // Scrollbar
+        { "scrollbar",             "E4E8F0" },
+        { "nimbusScrollBar",       "BEC6D8" },
+        // Menu
+        { "menu",                  "FFFFFF" },
+        { "menuHighlight",         "3464EB" },
+    };
 
-        // Borders & separators
-        set("nimbusBorder",         0x3C4260);
+    // ── Helpers ───────────────────────────────────────────────────────────
 
-        // Scroll bar
-        set("scrollbar",            0x252738);
-        set("nimbusScrollBar",      0x3A3E58);
-
-        // Menu / popup
-        set("menu",                 0x252738);
-        set("menuHighlight",        0x3D5299);
+    /** Write a palette table into UIManager (pre-install path). */
+    private static void writePalette(String[][] palette) {
+        for (String[] entry : palette) {
+            UIManager.put(entry[0],
+                new ColorUIResource(new Color((int) Long.parseLong(entry[1], 16))));
+        }
     }
 
-    // ── Light palette ─────────────────────────────────────────────────────
-
-    private static void applyLightPalette() {
-        // Primary surfaces
-        set("control",              0xF0F2F8);
-        set("info",                 0xFFFBE6);
-        set("nimbusBase",           0x5C7AB5);
-        set("nimbusBlueGrey",       0x8A9CC0);
-        set("nimbusLightBackground",0xFFFFFF);
-
-        // Text
-        set("text",                 0x1A1C2E);
-        set("nimbusSelectedText",   0xFFFFFF);
-        set("nimbusDisabledText",   0x9099B0);
-        set("infoText",             0x1A1C2E);
-        set("menuText",             0x1A1C2E);
-        set("textHighlight",        0xC5D3F5);
-
-        // Accent / interactive
-        set("nimbusSelectionBackground", 0x3464EB);
-        set("nimbusFocus",               0x3464EB);
-        set("nimbusOrange",              0x3464EB);
-
-        // Borders & separators
-        set("nimbusBorder",         0xC4CAD9);
-
-        // Scroll bar
-        set("scrollbar",            0xE4E8F0);
-        set("nimbusScrollBar",      0xBEC6D8);
-
-        // Menu / popup
-        set("menu",                 0xFFFFFF);
-        set("menuHighlight",        0x3464EB);
-    }
-
-    // ── Common defaults (applied after palette) ───────────────────────────
-
+    /** Non-colour defaults applied after the LAF is installed. */
     private static void applyCommonDefaults(boolean isDark) {
         Color accent = isDark ? new Color(82, 130, 255) : new Color(52, 100, 235);
+        Color bg     = isDark ? new Color(0x1C1E2E)    : Color.WHITE;
 
-        // Table / list row heights
-        UIManager.put("Table.rowHeight",  28);
-        UIManager.put("List.cellHeight",  26);
-        UIManager.put("Tree.rowHeight",   24);
-
-        // Button default background mirrors accent
-        UIManager.put("Button.background", new ColorUIResource(accent));
-
-        // Make sure opaque text areas use the right background
-        Color bg = isDark ? new Color(0x1C1E2E) : Color.WHITE;
+        UIManager.put("Table.rowHeight",        28);
+        UIManager.put("List.cellHeight",        26);
+        UIManager.put("Tree.rowHeight",         24);
+        UIManager.put("Button.background",      new ColorUIResource(accent));
         UIManager.put("TextArea.background",    new ColorUIResource(bg));
         UIManager.put("TextPane.background",    new ColorUIResource(bg));
         UIManager.put("EditorPane.background",  new ColorUIResource(bg));
-    }
 
-    // ── Helper ────────────────────────────────────────────────────────────
-
-    /**
-     * Write a colour token into both UIManager maps that Nimbus reads:
-     *   1. UIManager defaults  — used before any window opens
-     *   2. LAF defaults        — used by already-running Nimbus instance
-     */
-    private static void set(String key, int rgb) {
-        ColorUIResource color = new ColorUIResource(new Color(rgb));
-        UIManager.put(key, color);
-        UIManager.getLookAndFeelDefaults().put(key, color);
+        // Mirror into LAF defaults as well
+        UIDefaults laf = UIManager.getLookAndFeelDefaults();
+        laf.put("Button.background",     new ColorUIResource(accent));
+        laf.put("TextArea.background",   new ColorUIResource(bg));
+        laf.put("TextPane.background",   new ColorUIResource(bg));
+        laf.put("EditorPane.background", new ColorUIResource(bg));
     }
 }

@@ -83,7 +83,7 @@ public class TravelPlannerApp extends JFrame {
         this.expenseService   = expenseService;
         this.travelLogService = travelLogService;
 
-        ThemeManager.installDarkTheme();
+        // Theme is already installed in Main.java before invokeLater — do NOT call it here.
         configureFrame();
         buildRoot();
         startClock();
@@ -95,8 +95,8 @@ public class TravelPlannerApp extends JFrame {
     private void configureFrame() {
         setTitle("Travel Planner");
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        setMinimumSize(new Dimension(900, 600));
-        setSize(900, 600);
+        setMinimumSize(new Dimension(950, 600));
+        setSize(950, 600);
         setLocationRelativeTo(null);
     }
 
